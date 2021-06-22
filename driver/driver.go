@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"sync"
 
+	"os"
+
 	"github.com/rs/xid"
 	"gitlab.com/akita/akita/v2/sim"
 	"gitlab.com/akita/mem/v2/mem"
@@ -58,6 +60,8 @@ type Driver struct {
 	isCurrentlyMigratingOnePage     bool
 
 	RemotePMCPorts []sim.Port
+
+	sim.LogHookBase
 }
 
 // Run starts a new threads that handles all commands in the command queues
@@ -964,6 +968,13 @@ func NewDriver(
 	driver.driverStopped = make(chan bool)
 
 	driver.createCPU()
+
+	// Add custom logger to generate kernelslist.g
+	kernelslist, err := os.Create("kernelslist.g")
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	driver.Logger = log.New(kernelslist, "", 0)
 
 	return driver
 }

@@ -5,6 +5,9 @@ import (
 	"math"
 	"sync/atomic"
 
+	"encoding/binary"
+	"fmt"
+
 	// embed hsaco files
 	_ "embed"
 
@@ -284,11 +287,17 @@ func (d *Driver) enqueueFinalFlush(queue *CommandQueue) {
 	d.Enqueue(queue, cmd)
 }
 
+// TODO Add printf here to generate memcpy traces
 // MemCopyH2D copies a memory from the host to a GPU device.
 func (d *Driver) MemCopyH2D(ctx *Context, dst GPUPtr, src interface{}) {
 	queue := d.CreateCommandQueue(ctx)
 	d.EnqueueMemCopyH2D(queue, dst, src)
 	d.DrainCommandQueue(queue)
+
+	// Add logging
+	output := ""
+	output += fmt.Sprintf("MemcpyHtoD,0x%016x,%d\n", dst, binary.Size(src))
+	d.Logger.Print(output)
 }
 
 // MemCopyD2H copies a memory from a GPU device to the host
@@ -296,6 +305,12 @@ func (d *Driver) MemCopyD2H(ctx *Context, dst interface{}, src GPUPtr) {
 	queue := d.CreateCommandQueue(ctx)
 	d.EnqueueMemCopyD2H(queue, dst, src)
 	d.DrainCommandQueue(queue)
+
+	// Add logging
+	output := ""
+	// From GPU Addr
+	output += fmt.Sprintf("MemcpyDtoH,0x%016x,%d\n", src, binary.Size(dst))
+	d.Logger.Print(output)
 }
 
 // MemCopyD2D copies a memory from a GPU device to another GPU device. num is
@@ -304,4 +319,9 @@ func (d *Driver) MemCopyD2D(ctx *Context, dst GPUPtr, src GPUPtr, num int) {
 	queue := d.CreateCommandQueue(ctx)
 	d.EnqueueMemCopyD2D(queue, dst, src, num)
 	d.DrainCommandQueue(queue)
+
+	// Add logging
+	output := ""
+	output += fmt.Sprintf("MemcpyDtoD,0x%016x,%d\n", dst, num)
+	d.Logger.Print(output)
 }

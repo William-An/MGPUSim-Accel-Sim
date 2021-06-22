@@ -26,3 +26,7 @@ vendor
 .DS_Store
 *.json
 __debug_bin
+
+# Accel-Sim related
+*.g
+*.traceg

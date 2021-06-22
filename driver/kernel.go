@@ -4,11 +4,15 @@ import (
 	"encoding/binary"
 	"reflect"
 
+	"fmt"
+	"strconv"
+
 	"gitlab.com/akita/akita/v2/sim"
 	"gitlab.com/akita/mgpusim/v2/insts"
 	"gitlab.com/akita/mgpusim/v2/kernels"
 )
 
+// TODO Add output to simulate kernelslist.g
 // EnqueueLaunchKernel schedules kernel to be launched later
 func (d *Driver) EnqueueLaunchKernel(
 	queue *CommandQueue,
@@ -112,4 +116,10 @@ func (d *Driver) enqueueLaunchKernelCommand(
 		Packet:     packet,
 	}
 	d.Enqueue(queue, cmd)
+
+	// Add logging
+	var id, _ = strconv.Atoi(cmd.GetID())
+	output := ""
+	output += fmt.Sprintf("kernel-%d.traceg\n", id)
+	d.Logger.Print(output)
 }
