@@ -157,6 +157,18 @@
             ]
         },
         {
+            "name": "FIR Debug ISA",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/samples/fir",
+            "args": [
+                "-verify",
+                "-length=4096",
+                "-debug-isa"
+            ]
+        },
+        {
             "name": "Concurrent Workload",
             "type": "go",
             "request": "launch",

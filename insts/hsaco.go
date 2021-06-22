@@ -10,6 +10,9 @@ import (
 type HsaCo struct {
 	*HsaCoHeader
 	Data []byte
+
+	// Accel-Sim: Kernel ID link to this co
+	ID string
 }
 
 // HsaCoHeader contains the header information of an HSACO

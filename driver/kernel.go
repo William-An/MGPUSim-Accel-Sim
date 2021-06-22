@@ -12,7 +12,6 @@ import (
 	"gitlab.com/akita/mgpusim/v2/kernels"
 )
 
-// TODO Add output to simulate kernelslist.g
 // EnqueueLaunchKernel schedules kernel to be launched later
 func (d *Driver) EnqueueLaunchKernel(
 	queue *CommandQueue,

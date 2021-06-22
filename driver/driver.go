@@ -61,6 +61,7 @@ type Driver struct {
 
 	RemotePMCPorts []sim.Port
 
+	// Accel-Sim usage
 	sim.LogHookBase
 }
 
@@ -470,6 +471,12 @@ func (d *Driver) processLaunchKernelCommand(
 	req := protocol.NewLaunchKernelReq(now,
 		d.gpuPort, d.GPUs[queue.GPUID-1])
 	req.PID = queue.Context.pid
+
+	// BEGIN: ACCEL-SIM
+	// Link HSA object with kernel ID
+	cmd.CodeObject.ID = cmd.ID
+	// END: Accel-Sim
+
 	req.HsaCo = cmd.CodeObject
 
 	req.Packet = cmd.Packet

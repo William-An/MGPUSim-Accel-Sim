@@ -6,6 +6,7 @@ import (
 )
 
 // A Grid is a running instance of a kernel.
+// todo Use grid as identifier for kernel
 type Grid struct {
 	CodeObject    *insts.HsaCo
 	Packet        *HsaKernelDispatchPacket

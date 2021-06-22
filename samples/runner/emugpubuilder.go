@@ -143,12 +143,10 @@ func (b *EmuGPUBuilder) buildComputeUnits() {
 		b.computeUnits = append(b.computeUnits, computeUnit)
 
 		if b.enableISADebug {
-			isaDebug, err := os.Create(
-				fmt.Sprintf("isa_%s.debug", computeUnit.Name()))
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-			isaDebugger := emu.NewISADebugger(log.New(isaDebug, "", 0))
+			// Instead of each compute unit hosts a trace logger
+			// Each compute unit will generate new trace logger
+			// upon every new kernel launch
+			isaDebugger := emu.NewISADebugger(computeUnit.Name())
 			computeUnit.AcceptHook(isaDebugger)
 		}
 	}

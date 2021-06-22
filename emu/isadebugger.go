@@ -1,10 +1,15 @@
 package emu
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 
+	"os"
+
+	// "github.com/tebeka/atexit"
 	"gitlab.com/akita/akita/v2/sim"
+	"gitlab.com/akita/mgpusim/v2/insts"
 )
 
 // ISADebugger is a hook that hooks to a emulator computeunit for each intruction
@@ -13,17 +18,25 @@ type ISADebugger struct {
 
 	isFirstEntry bool
 	// prevWf *Wavefront
+
+	// Accel-Sim
+	kernelID string
+	cuName   string // Compute unit name
 }
 
 // NewISADebugger returns a new ISADebugger that keeps instruction log in logger
-func NewISADebugger(logger *log.Logger) *ISADebugger {
+func NewISADebugger(cuName string) *ISADebugger {
 	h := new(ISADebugger)
-	h.Logger = logger
+	h.Logger = nil
 	h.isFirstEntry = true
 
-	// No need for json like printout
+	// Accel-Sim: No need for json like printout
 	// h.Logger.Print("[")
 	// atexit.Register(func() { h.Logger.Print("\n]") })
+
+	// Accel-Sim
+	h.kernelID = ""
+	h.cuName = cuName
 
 	return h
 }
@@ -40,7 +53,20 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 	// 	return
 	// }
 
-	h.logWholeWf(wf)
+	// Switch logger if kernelID not matched
+	if wf.CodeObject.ID != h.kernelID {
+		// Create a new logger file entry
+		h.kernelID = wf.CodeObject.ID
+		kernelTraceFile, err := os.Create(
+			fmt.Sprintf("%s-kernel-%s.trace", h.cuName, h.kernelID))
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		h.Logger = log.New(kernelTraceFile, "", 0)
+	}
+
+	h.logWholeWfAccelSim(wf)
+	// h.logWholeWf(wf)
 	// if h.prevWf == nil || h.prevWf.FirstWiFlatID != wf.FirstWiFlatID {
 	// 	h.logWholeWf(wf)
 	// } else {
@@ -48,6 +74,28 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 	// }
 
 	// h.stubWf(wf)
+}
+
+func (h *ISADebugger) logWholeWfAccelSim(wf *Wavefront) {
+	// TODO Switch logger file here if ID not match
+
+	output := ""
+	// TODO Format this as the Accel-Sim
+	//  Like intermediate format?
+	//  TODO How to group? Find the kernel id
+	// TODO Log begin and end of TB/WG
+
+	// output += fmt.Sprintf("{")
+	output += fmt.Sprintf(`"wg":[%d,%d,%d],"wf":%d,`,
+		wf.WG.IDX, wf.WG.IDY, wf.WG.IDZ, wf.FirstWiFlatID)
+	output += fmt.Sprintf(`"Kernel ID":"%s",`, wf.CodeObject.ID)
+	output += fmt.Sprintf(`"Inst":"%s",`, wf.Inst().String(nil))
+	output += fmt.Sprintf(`"PC":%08x,`, wf.PC)
+	output += fmt.Sprintf(`"EXEC":%016x,`, wf.Exec)
+	output += fmt.Sprintf(`"VCC":%d,`, wf.VCC)
+	output += fmt.Sprintf(`"SCC":%d,`, wf.SCC)
+
+	h.Logger.Print(output)
 }
 
 func (h *ISADebugger) logWholeWf(wf *Wavefront) {
@@ -58,11 +106,7 @@ func (h *ISADebugger) logWholeWf(wf *Wavefront) {
 		output += ","
 	}
 
-	// TODO Format this as the GPGPU-Sim
-	//  Like intermediate format?
-	//  TODO How to group? Find the kernel id
-
-	// output += fmt.Sprintf("{")
+	output += fmt.Sprintf("{")
 	output += fmt.Sprintf(`"wg":[%d,%d,%d],"wf":%d,`,
 		wf.WG.IDX, wf.WG.IDY, wf.WG.IDZ, wf.FirstWiFlatID)
 	output += fmt.Sprintf(`"Inst":"%s",`, wf.Inst().String(nil))
@@ -74,7 +118,6 @@ func (h *ISADebugger) logWholeWf(wf *Wavefront) {
 	output += fmt.Sprintf(`"VCCHi":%d,`, wf.VCC>>32)
 	output += fmt.Sprintf(`"SCC":%d,`, wf.SCC)
 
-	/**
 	output += fmt.Sprintf(`"SGPRs":[`)
 	for i := 0; i < int(wf.CodeObject.WFSgprCount); i++ {
 		if i > 0 {
@@ -105,12 +148,11 @@ func (h *ISADebugger) logWholeWf(wf *Wavefront) {
 		output += "]"
 	}
 	output += "]"
-	*/
 
-	// output += `,"LDS":`
-	// output += fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(wf.LDS))
+	output += `,"LDS":`
+	output += fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(wf.LDS))
 
-	// output += fmt.Sprintf("}")
+	output += fmt.Sprintf("}")
 
 	h.Logger.Print(output)
 }
