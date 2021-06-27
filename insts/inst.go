@@ -95,10 +95,9 @@ func NewInst() *Inst {
 }
 
 func (i Inst) sop2String() string {
-	return i.InstName + " " +
-		i.Dst.String() + ", " +
-		i.Src0.String() + ", " +
-		i.Src1.String()
+	instString := fmt.Sprintf("1 %s %s 2 %s %s 0",
+		i.Dst.String(), i.InstName, i.Src0.String(), i.Src1.String())
+	return instString
 }
 
 func (i Inst) vop1String() string {
@@ -151,8 +150,11 @@ func (i Inst) soppString(file *elf.File) string {
 	} else {
 		operandStr = " " + i.SImm16.String()
 	}
-	s := i.InstName + operandStr
-	return s
+
+	// TODO How to handle this?
+	instString := fmt.Sprintf("0 %s %d %s 0",
+		i.InstName, operandStr != "", operandStr)
+	return instString
 }
 
 func (i Inst) waitcntOperandString() string {
@@ -218,8 +220,9 @@ func (i Inst) vopcString() string {
 }
 
 func (i Inst) sopcString() string {
-	return fmt.Sprintf("%s %s, %s",
+	instString := fmt.Sprintf("0 %s 2 %s %s 0",
 		i.InstName, i.Src0.String(), i.Src1.String())
+	return instString
 }
 
 func (i Inst) vop3aString() string {
@@ -286,14 +289,16 @@ func (i Inst) vop3bString() string {
 }
 
 func (i Inst) sop1String() string {
-	return fmt.Sprintf("%s %s, %s", i.InstName, i.Dst.String(), i.Src0.String())
+	instString := fmt.Sprintf("1 %s %s 1 %s 0",
+		i.Dst.String(), i.InstName, i.Src0.String())
+	return instString
 }
 
 func (i Inst) sopkString() string {
-	s := fmt.Sprintf("%s %s, 0x%x",
-		i.InstName, i.Dst.String(), i.SImm16.IntValue)
-
-	return s
+	// TODO How should accel-sim handle this?
+	instString := fmt.Sprintf("1 %s %s 1 0x%x 0",
+		i.Dst.String(), i.InstName, i.SImm16.IntValue)
+	return instString
 }
 
 func (i Inst) dsString() string {
@@ -366,3 +371,5 @@ func (i Inst) String(file *elf.File) string {
 		return i.InstName
 	}
 }
+
+// TODO Add Accel-Sim format instruction here
