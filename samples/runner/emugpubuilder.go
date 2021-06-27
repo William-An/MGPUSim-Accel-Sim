@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"gitlab.com/akita/akita/v2/sim"
 	"gitlab.com/akita/mem/v2/idealmemcontroller"
@@ -133,6 +134,7 @@ func (b *EmuGPUBuilder) clear() {
 
 func (b *EmuGPUBuilder) buildComputeUnits() {
 	disassembler := insts.NewDisassembler()
+	mutex := &sync.Mutex{}
 
 	for i := 0; i < 4; i++ {
 		computeUnit := emu.BuildComputeUnit(
@@ -146,7 +148,7 @@ func (b *EmuGPUBuilder) buildComputeUnits() {
 			// Instead of each compute unit hosts a trace logger
 			// Each compute unit will generate new trace logger
 			// upon every new kernel launch
-			isaDebugger := emu.NewISADebugger(computeUnit.Name())
+			isaDebugger := emu.NewISADebugger(computeUnit.Name(), mutex)
 			computeUnit.AcceptHook(isaDebugger)
 		}
 	}

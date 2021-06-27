@@ -79,6 +79,9 @@ func LoadProgramFromMemory(data []byte, kernelName string) *insts.HsaCo {
 	// Use the whole text section in this case.
 	if kernelName == "" {
 		hsaco := insts.NewHsaCoFromData(textSectionData)
+
+		// Accel-Sim add kernel name to hsaco
+		hsaco.KernalName = kernelName
 		return hsaco
 	}
 
@@ -89,7 +92,7 @@ func LoadProgramFromMemory(data []byte, kernelName string) *insts.HsaCo {
 			hsaco := insts.NewHsaCoFromData(hsacoData)
 
 			//fmt.Println(hsaco.Info())
-
+			hsaco.KernalName = kernelName
 			return hsaco
 		}
 	}

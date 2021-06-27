@@ -11,8 +11,10 @@ type HsaCo struct {
 	*HsaCoHeader
 	Data []byte
 
-	// Accel-Sim: Kernel ID link to this co
-	ID string
+	// Accel-Sim: Kernel ID link to this HsaCo object
+	// Set when kernel launches
+	ID         string
+	KernalName string
 }
 
 // HsaCoHeader contains the header information of an HSACO

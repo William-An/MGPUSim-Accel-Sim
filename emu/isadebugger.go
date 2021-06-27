@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"os"
+	"sync"
 
 	// "github.com/tebeka/atexit"
 	"gitlab.com/akita/akita/v2/sim"
@@ -20,23 +21,30 @@ type ISADebugger struct {
 	// prevWf *Wavefront
 
 	// Accel-Sim
-	kernelID string
-	cuName   string // Compute unit name
+	kernelID   string
+	kernelName string
+	cuName     string // Compute unit name
+	mutex      *sync.Mutex
+
+	// Saved current workgroup indices
+	IDX int
+	IDY int
+	IDZ int
 }
 
 // NewISADebugger returns a new ISADebugger that keeps instruction log in logger
-func NewISADebugger(cuName string) *ISADebugger {
+func NewISADebugger(cuName string, mutex *sync.Mutex) *ISADebugger {
 	h := new(ISADebugger)
 	h.Logger = nil
 	h.isFirstEntry = true
 
-	// Accel-Sim: No need for json like printout
-	// h.Logger.Print("[")
-	// atexit.Register(func() { h.Logger.Print("\n]") })
-
 	// Accel-Sim
 	h.kernelID = ""
 	h.cuName = cuName
+	h.mutex = mutex
+
+	// Initially invalid indices
+	h.IDX, h.IDY, h.IDZ = -1, -1, -1
 
 	return h
 }
@@ -53,19 +61,81 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 	// 	return
 	// }
 
+	// For each compute unit
 	// Switch logger if kernelID not matched
 	if wf.CodeObject.ID != h.kernelID {
+		// Finish up previous kernel trace
+		// if !h.isFirstEntry {
+		// 	h.Logger.Println("#END_TB")
+		// }
+
 		// Create a new logger file entry
+		firstLogger := true // is this logger the first to write a kernel trace? In order to ignore header info
 		h.kernelID = wf.CodeObject.ID
-		kernelTraceFile, err := os.Create(
-			fmt.Sprintf("%s-kernel-%s.trace", h.cuName, h.kernelID))
-		if err != nil {
-			log.Fatal(err.Error())
+		h.kernelName = wf.CodeObject.KernalName
+
+		// Check for log file existence
+		h.mutex.Lock()
+		kernelTraceFileName := fmt.Sprintf("kernel-%s.trace", h.kernelID)
+		kernelFile, _ := os.Stat(kernelTraceFileName)
+		if kernelFile == nil {
+			// First logger to this kernel
+			kernelTraceFile, _ := os.Create(kernelTraceFileName)
+			h.Logger = log.New(kernelTraceFile, "", 0)
+
+			// TODO Log basic header info from hsakerneldispatchpacket
+			// for header info as all will be concatenating together
+			if firstLogger {
+				h.Logger.Printf("-kernel name = %s\n", h.kernelName)
+				h.Logger.Printf("-kernel id = %s\n", h.kernelID)
+			}
+
+			// Dims
+			wgSizeX := uint32(wf.Packet.WorkgroupSizeX)
+			wgSizeY := uint32(wf.Packet.WorkgroupSizeY)
+			wgSizeZ := uint32(wf.Packet.WorkgroupSizeZ)
+
+			// As grid size in MGPUSim is the total size rather than grid size
+			h.Logger.Printf("-grid dim = (%d,%d,%d)\n",
+				wf.Packet.GridSizeX/wgSizeX,
+				wf.Packet.GridSizeY/wgSizeY,
+				wf.Packet.GridSizeZ/wgSizeZ,
+			)
+			h.Logger.Printf("-block dim = (%d,%d,%d)\n", wgSizeX, wgSizeY, wgSizeZ)
+		} else {
+			// Not first one
+			kernelTraceFile, _ := os.Create(
+				fmt.Sprintf("kernel-%s-%s.trace", h.kernelID, h.cuName))
+			h.Logger = log.New(kernelTraceFile, "", 0)
 		}
-		h.Logger = log.New(kernelTraceFile, "", 0)
+		h.mutex.Unlock()
 	}
 
+	// No need for this, use the post-processing tool to handle raw trace
+	// Check if to start a new wavegroup
+	// if wf.WG.IDX != h.IDX ||
+	// 	wf.WG.IDY != h.IDY ||
+	// 	wf.WG.IDZ != h.IDZ {
+	// 	h.IDX, h.IDY, h.IDZ = wf.WG.IDX, wf.WG.IDY, wf.WG.IDZ
+
+	// 	// Don't print at first
+	// 	if h.isFirstEntry {
+	// 		h.isFirstEntry = false
+	// 	} else {
+	// 		h.Logger.Println("#END_TB")
+	// 	}
+
+	// 	h.Logger.Println()
+	// 	h.Logger.Println("#BEGIN_TB")
+	// 	h.Logger.Println()
+	// 	h.Logger.Printf("thread block = %d,%d,%d\n", h.IDX, h.IDY, h.IDZ)
+	// 	h.Logger.Println()
+	// }
+
+	// Use mutex lock to ensure write to same file?
+	h.mutex.Lock()
 	h.logWholeWfAccelSim(wf)
+	h.mutex.Unlock()
 	// h.logWholeWf(wf)
 	// if h.prevWf == nil || h.prevWf.FirstWiFlatID != wf.FirstWiFlatID {
 	// 	h.logWholeWf(wf)
@@ -77,23 +147,20 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 }
 
 func (h *ISADebugger) logWholeWfAccelSim(wf *Wavefront) {
-	// TODO Switch logger file here if ID not match
 
+	// TODO Format as the following:
+	// #traces format = threadblock_x threadblock_y threadblock_z warpid_tb PC mask dest_num [reg_dests] opcode src_num [reg_srcs] mem_width [adrrescompress?] [mem_addresses]
+	// warpid_tb should be just wf.wlflatid/wavefront.size
 	output := ""
-	// TODO Format this as the Accel-Sim
-	//  Like intermediate format?
-	//  TODO How to group? Find the kernel id
-	// TODO Log begin and end of TB/WG
+	output += fmt.Sprintf(`%d %d %d %d `, wf.WG.IDX, wf.WG.IDY, wf.WG.IDZ, wf.FirstWiFlatID/64)
+	output += fmt.Sprintf(`%08x `, wf.PC)
+	output += fmt.Sprintf(`%016x `, wf.Exec)
 
-	// output += fmt.Sprintf("{")
-	output += fmt.Sprintf(`"wg":[%d,%d,%d],"wf":%d,`,
-		wf.WG.IDX, wf.WG.IDY, wf.WG.IDZ, wf.FirstWiFlatID)
-	output += fmt.Sprintf(`"Kernel ID":"%s",`, wf.CodeObject.ID)
-	output += fmt.Sprintf(`"Inst":"%s",`, wf.Inst().String(nil))
-	output += fmt.Sprintf(`"PC":%08x,`, wf.PC)
-	output += fmt.Sprintf(`"EXEC":%016x,`, wf.Exec)
-	output += fmt.Sprintf(`"VCC":%d,`, wf.VCC)
-	output += fmt.Sprintf(`"SCC":%d,`, wf.SCC)
+	// TODO Change this output via creating new String method in
+	// the Inst class
+	output += fmt.Sprintf(`%s `, wf.Inst().String(nil))
+
+	// TODO What about memory location?
 
 	h.Logger.Print(output)
 }

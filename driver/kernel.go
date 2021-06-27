@@ -119,6 +119,6 @@ func (d *Driver) enqueueLaunchKernelCommand(
 	// Add logging
 	var id, _ = strconv.Atoi(cmd.GetID())
 	output := ""
-	output += fmt.Sprintf("kernel-%d.traceg\n", id)
+	output += fmt.Sprintf("kernel-%d.trace\n", id)
 	d.Logger.Print(output)
 }
