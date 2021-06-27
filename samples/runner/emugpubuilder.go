@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 
+	"github.com/tebeka/atexit"
 	"gitlab.com/akita/akita/v2/sim"
 	"gitlab.com/akita/mem/v2/idealmemcontroller"
 	"gitlab.com/akita/mem/v2/mem"
@@ -135,6 +138,42 @@ func (b *EmuGPUBuilder) clear() {
 func (b *EmuGPUBuilder) buildComputeUnits() {
 	disassembler := insts.NewDisassembler()
 	mutex := &sync.Mutex{}
+
+	// Remove existing trace files
+	files, err := filepath.Glob("./*.trace")
+	if err != nil {
+		panic(err)
+	}
+	for _, f := range files {
+		if err := os.Remove(f); err != nil {
+			panic(err)
+		}
+	}
+
+	// Register concatenation handler
+	atexit.Register(func() {
+		topTraceFiles, _ := filepath.Glob("./kernel-*.trace")
+		for _, topTraceFp := range topTraceFiles {
+			_, filename := filepath.Split(topTraceFp)
+			var kernelID int
+			fmt.Sscanf(filename, "kernel-%d.trace", &kernelID)
+			partialTraceFiles, _ := filepath.Glob(
+				fmt.Sprintf("./*-kernel-%d.trace", kernelID))
+			for _, partialTraceFp := range partialTraceFiles {
+				appendTrace := exec.Command("/bin/sh", "-c",
+					fmt.Sprintf("cat %s >> %s", partialTraceFp, topTraceFp))
+				err := appendTrace.Run()
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// Clean up
+				if err := os.Remove(partialTraceFp); err != nil {
+					panic(err)
+				}
+			}
+		}
+	})
 
 	for i := 0; i < 4; i++ {
 		computeUnit := emu.BuildComputeUnit(

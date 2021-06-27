@@ -212,6 +212,17 @@
             ]
         },
         {
+            "name": "FFT Debug ISA",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/samples/fft",
+            "args": [
+                "-verify",
+                "-debug-isa"
+            ]
+        },
+        {
             "name": "NBody",
             "type": "go",
             "request": "launch",

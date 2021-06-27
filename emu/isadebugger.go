@@ -63,6 +63,7 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 
 	// For each compute unit
 	// Switch logger if kernelID not matched
+	h.mutex.Lock()
 	if wf.CodeObject.ID != h.kernelID {
 		// Finish up previous kernel trace
 		// if !h.isFirstEntry {
@@ -75,7 +76,6 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 		h.kernelName = wf.CodeObject.KernalName
 
 		// Check for log file existence
-		h.mutex.Lock()
 		kernelTraceFileName := fmt.Sprintf("kernel-%s.trace", h.kernelID)
 		kernelFile, _ := os.Stat(kernelTraceFileName)
 		if kernelFile == nil {
@@ -104,12 +104,11 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 			h.Logger.Printf("-block dim = (%d,%d,%d)\n", wgSizeX, wgSizeY, wgSizeZ)
 		} else {
 			// Not first one
-			kernelTraceFile, _ := os.Create(
-				fmt.Sprintf("kernel-%s-%s.trace", h.kernelID, h.cuName))
+			kernelTraceFile, _ := os.Create(fmt.Sprintf("%s-kernel-%s.trace", h.cuName, h.kernelID))
 			h.Logger = log.New(kernelTraceFile, "", 0)
 		}
-		h.mutex.Unlock()
 	}
+	h.mutex.Unlock()
 
 	// No need for this, use the post-processing tool to handle raw trace
 	// Check if to start a new wavegroup
@@ -132,10 +131,8 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 	// 	h.Logger.Println()
 	// }
 
-	// Use mutex lock to ensure write to same file?
-	h.mutex.Lock()
 	h.logWholeWfAccelSim(wf)
-	h.mutex.Unlock()
+
 	// h.logWholeWf(wf)
 	// if h.prevWf == nil || h.prevWf.FirstWiFlatID != wf.FirstWiFlatID {
 	// 	h.logWholeWf(wf)
