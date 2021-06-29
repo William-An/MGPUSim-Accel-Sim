@@ -4,7 +4,6 @@ import (
 	"debug/elf"
 	"fmt"
 	"log"
-	"strings"
 )
 
 // ExeUnit defines which execution unit should execute the instruction
@@ -101,9 +100,9 @@ func (i Inst) sop2String() string {
 }
 
 func (i Inst) vop1String() string {
-	return i.InstName + " " +
-		i.Dst.String() + ", " +
-		i.Src0.String()
+	instString := fmt.Sprintf("1 %s %s 1 %s 0",
+		i.Dst.String(), i.InstName, i.Src0.String())
+	return instString
 }
 
 func (i Inst) flatString() string {
@@ -152,8 +151,8 @@ func (i Inst) soppString(file *elf.File) string {
 	}
 
 	// TODO How to handle this?
-	instString := fmt.Sprintf("0 %s %d %s 0",
-		i.InstName, operandStr != "", operandStr)
+	instString := fmt.Sprintf("0 %s 0 0",
+		i.InstName)
 	return instString
 }
 
@@ -170,28 +169,37 @@ func (i Inst) waitcntOperandString() string {
 }
 
 func (i Inst) vop2String() string {
-	s := fmt.Sprintf("%s %s", i.InstName, i.Dst.String())
+	// VOP2 is for instructions with two inputs and a single vector destination.
+	// Instructions that have a carry-out implicitly write the carry-out to the VCC register.
 
-	switch i.Opcode {
-	case 25, 26, 27, 28, 29, 30:
-		s += ", vcc"
-	}
+	// Original printout
+	// s := fmt.Sprintf("%s %s", i.InstName, i.Dst.String())
 
-	s += fmt.Sprintf(", %s, %s", i.Src0.String(), i.Src1.String())
+	// switch i.Opcode {
+	// case 25, 26, 27, 28, 29, 30:
+	// 	s += ", vcc"
+	// }
 
-	switch i.Opcode {
-	case 0, 28, 29:
-		s += ", vcc"
-	case 24, 37: // madak
-		s += ", " + i.Src2.String()
-	}
+	// s += fmt.Sprintf(", %s, %s", i.Src0.String(), i.Src1.String())
 
-	if i.IsSdwa {
-		s = strings.ReplaceAll(s, "_e32", "_sdwa")
-		s += i.sdwaVOP2String()
-	}
+	// switch i.Opcode {
+	// case 0, 28, 29:
+	// 	s += ", vcc"
+	// case 24, 37: // madak
+	// 	s += ", " + i.Src2.String()
+	// }
 
-	return s
+	// if i.IsSdwa {
+	// 	s = strings.ReplaceAll(s, "_e32", "_sdwa")
+	// 	s += i.sdwaVOP2String()
+	// }
+
+	// return s
+
+	// Accel-Sim printout
+	instString := fmt.Sprintf("1 %s %s 2 %s %s 0",
+		i.Dst.String(), i.InstName, i.Src0.String(), i.Src1.String())
+	return instString
 }
 
 func (i Inst) sdwaVOP2String() string {
@@ -210,13 +218,19 @@ func (i Inst) sdwaVOP2String() string {
 }
 
 func (i Inst) vopcString() string {
-	dst := "vcc"
-	if strings.Contains(i.InstName, "cmpx") {
-		dst = "exec"
-	}
+	// Write to either VCC or EXEC, ignore currently in Accel-Sim
+	// TODO Could assign special registers numbering in Accel-Sim? for writing to these special regs
+	// dst := "vcc"
+	// if strings.Contains(i.InstName, "cmpx") {
+	// 	dst = "exec"
+	// }
 
-	return fmt.Sprintf("%s %s, %s, %s",
-		i.InstName, dst, i.Src0.String(), i.Src1.String())
+	// return fmt.Sprintf("%s %s, %s, %s",
+	// 	i.InstName, dst, i.Src0.String(), i.Src1.String())
+
+	instString := fmt.Sprintf("0 %s 2 %s %s 0",
+		i.InstName, i.Src0.String(), i.Src1.String())
+	return instString
 }
 
 func (i Inst) sopcString() string {
@@ -226,26 +240,38 @@ func (i Inst) sopcString() string {
 }
 
 func (i Inst) vop3aString() string {
-	s := fmt.Sprintf("%s %s",
-		i.InstName, i.Dst.String())
+	/**
+	3 in, 1 out
+	VOP3 is for instructions with up to three inputs, input modifiers (negate and
+	absolute value), and output modifiers. There are two forms of VOP3: one which
+	uses a scalar destination field (used only for div_scale, integer add and subtract);
+	this is designated VOP3b. All other instructions use the common form,
+	designated VOP3a.
+	*/
+	// s := fmt.Sprintf("%s %s",
+	// 	i.InstName, i.Dst.String())
 
-	s += ", " + i.vop3aInputOperandString(*i.Src0,
-		i.Src0Neg,
-		i.Src0Abs)
+	// s += ", " + i.vop3aInputOperandString(*i.Src0,
+	// 	i.Src0Neg,
+	// 	i.Src0Abs)
 
-	s += ", " + i.vop3aInputOperandString(*i.Src1,
-		i.Src1Neg,
-		i.Src1Abs)
+	// s += ", " + i.vop3aInputOperandString(*i.Src1,
+	// 	i.Src1Neg,
+	// 	i.Src1Abs)
 
-	if i.Src2 == nil {
-		return s
-	}
+	// if i.Src2 == nil {
+	// 	return s
+	// }
 
-	s += ", " + i.vop3aInputOperandString(*i.Src2,
-		i.Src2Neg,
-		i.Src2Abs)
+	// s += ", " + i.vop3aInputOperandString(*i.Src2,
+	// 	i.Src2Neg,
+	// 	i.Src2Abs)
 
-	return s
+	// return s
+
+	instString := fmt.Sprintf("1 %s %s 3 %s %s %s 0",
+		i.Dst.String(), i.InstName, i.Src0.String(), i.Src1.String(), i.Src2.String())
+	return instString
 }
 
 func (i Inst) vop3aInputOperandString(operand Operand, neg, abs bool) string {
@@ -269,23 +295,36 @@ func (i Inst) vop3aInputOperandString(operand Operand, neg, abs bool) string {
 }
 
 func (i Inst) vop3bString() string {
-	s := i.InstName + " "
+	// 3 in, 2 out
 
-	if i.Dst != nil {
-		s += i.Dst.String() + ", "
-	}
+	// s := i.InstName + " "
 
-	s += fmt.Sprintf("%s, %s, %s",
-		i.SDst.String(),
-		i.Src0.String(),
-		i.Src1.String(),
-	)
+	// if i.Dst != nil {
+	// 	s += i.Dst.String() + ", "
+	// }
 
+	// s += fmt.Sprintf("%s, %s, %s",
+	// 	i.SDst.String(),
+	// 	i.Src0.String(),
+	// 	i.Src1.String(),
+	// )
+
+	// if i.Opcode != 281 && i.Src2 != nil {
+	// 	s += ", " + i.Src2.String()
+	// }
+
+	// return s
+
+	// Accel-Sim
 	if i.Opcode != 281 && i.Src2 != nil {
-		s += ", " + i.Src2.String()
+		instString := fmt.Sprintf("2 %s %s %s 3 %s %s %s 0",
+			i.Dst.String(), i.SDst.String(), i.InstName, i.Src0.String(), i.Src1.String(), i.Src2.String())
+		return instString
+	} else {
+		instString := fmt.Sprintf("2 %s %s %s 2 %s %s 0",
+			i.Dst.String(), i.SDst.String(), i.InstName, i.Src0.String(), i.Src1.String())
+		return instString
 	}
-
-	return s
 }
 
 func (i Inst) sop1String() string {
@@ -295,9 +334,9 @@ func (i Inst) sop1String() string {
 }
 
 func (i Inst) sopkString() string {
-	// TODO How should accel-sim handle this?
-	instString := fmt.Sprintf("1 %s %s 1 0x%x 0",
-		i.Dst.String(), i.InstName, i.SImm16.IntValue)
+	// No src regs for immediate values
+	instString := fmt.Sprintf("1 %s %s 0 0",
+		i.Dst.String(), i.InstName)
 	return instString
 }
 
