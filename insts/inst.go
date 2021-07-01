@@ -4,6 +4,7 @@ import (
 	"debug/elf"
 	"fmt"
 	"log"
+	"strings"
 )
 
 // ExeUnit defines which execution unit should execute the instruction
@@ -23,16 +24,17 @@ const (
 // A InstType represents an instruction type. For example s_barrier instruction
 // is a instruction type
 type InstType struct {
-	InstName  string
-	Opcode    Opcode
-	Format    *Format
-	ID        int
-	ExeUnit   ExeUnit
-	DSTWidth  int
-	SRC0Width int
-	SRC1Width int
-	SRC2Width int
-	SDSTWidth int
+	InstName    string
+	Opcode      Opcode
+	Format      *Format
+	ID          int
+	ExeUnit     ExeUnit
+	DSTWidth    int
+	SRC0Width   int
+	SRC1Width   int
+	SRC2Width   int
+	SDSTWidth   int
+	MemoryWidth int
 }
 
 // An Inst is a GCN3 instruction
@@ -93,65 +95,136 @@ func NewInst() *Inst {
 	return i
 }
 
+// TODO Might want to use function to calculate the reg count and reg string
 func (i Inst) sop2String() string {
-	instString := fmt.Sprintf("1 %s %s 2 %s %s 0",
-		i.Dst.String(), i.InstName, i.Src0.String(), i.Src1.String())
+	srcString := ""
+	regCount := 0
+
+	// Make sure the right reg count is added
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	if i.Src1.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src1.String()
+		} else {
+			srcString = srcString + " " + i.Src1.String()
+		}
+		count := 1
+		if i.Src1.RegCount != 0 {
+			count = i.Src1.RegCount
+		}
+		regCount += count
+	}
+	instString := fmt.Sprintf("1 %s %s %d %s",
+		i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
 func (i Inst) vop1String() string {
-	instString := fmt.Sprintf("1 %s %s 1 %s 0",
-		i.Dst.String(), i.InstName, i.Src0.String())
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	instString := fmt.Sprintf("1 %s %s %d %s",
+		i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
 func (i Inst) flatString() string {
-	var s string
-	if i.Opcode >= 16 && i.Opcode <= 23 {
-		s = i.InstName + " " + i.Dst.String() + ", " +
-			i.Addr.String()
-	} else if i.Opcode >= 24 && i.Opcode <= 31 {
-		s = i.InstName + " " + i.Addr.String() + ", " +
-			i.Data.String()
+	/*
+		Flat Memory instructions read, or write, one piece of data into, or out of, VGPRs;
+		they do this separately for each work-item in a wavefront.
+	*/
+
+	// var s string
+	// if i.Opcode >= 16 && i.Opcode <= 23 {
+	// 	s = i.InstName + " " + i.Dst.String() + ", " +
+	// 		i.Addr.String()
+	// } else if i.Opcode >= 24 && i.Opcode <= 31 {
+	// 	s = i.InstName + " " + i.Addr.String() + ", " +
+	// 		i.Data.String()
+	// }
+
+	var instString string
+	if i.Opcode >= 16 && i.Opcode <= 23 { // Load
+		instString = fmt.Sprintf("1 %s %s %d %s",
+			i.Dst.String(), i.InstName, i.Addr.RegCount, i.Addr.String())
+	} else if i.Opcode >= 24 && i.Opcode <= 31 { // Store
+		// TODO How to deal with store reg? Treat all as src regs?
+		instString = fmt.Sprintf("0 %s %d %s %s",
+			i.InstName, i.Addr.RegCount+i.Data.RegCount, i.Addr.String(), i.Data.String())
 	}
-	return s
+
+	return instString
 }
 
 func (i Inst) smemString() string {
 	// TODO: Consider store instructions, and the case if imm = 0
-	s := fmt.Sprintf("%s %s, %s, %#x",
-		i.InstName, i.Data.String(), i.Base.String(), uint16(i.Offset.IntValue))
-	return s
+	//
+	// s := fmt.Sprintf("%s %s, %s, %#x",
+	// 	i.InstName, i.Data.String(), i.Base.String(), uint16(i.Offset.IntValue))
+	// return s
+
+	// If load op, have dst regs, else be store op, treat addr and data reg as src
+	var instString string
+	if strings.Contains(i.InstName, "load") && i.Imm { // load with immediate val offset
+		instString = fmt.Sprintf("%d %s %s %d %s",
+			i.Data.RegCount, i.Data.String(), i.InstName, i.Base.RegCount, i.Base.String())
+	} else if strings.Contains(i.InstName, "load") && !i.Imm { // load with SREG offset
+		instString = fmt.Sprintf("%d %s %s %d %s %s",
+			i.Data.RegCount, i.Data.String(), i.InstName, i.Base.RegCount+1, i.Base.String(), i.Offset.regOperandToString())
+	} else if !i.Imm { // Store with SREG offset
+		instString = fmt.Sprintf("0 %s %d %s %s %s",
+			i.InstName, i.Base.RegCount+i.Data.RegCount+1, i.Base.String(), i.Data.String(), i.Offset.String())
+	} else { // Store with immediate value offset and other smem ops
+		instString = fmt.Sprintf("0 %s %d %s %s",
+			i.InstName, i.Base.RegCount+i.Data.RegCount, i.Base.String(), i.Data.String())
+
+	}
+
+	return instString
 }
 
 func (i Inst) soppString(file *elf.File) string {
-	operandStr := ""
-	if i.Opcode == 12 { // S_WAITCNT
-		operandStr = i.waitcntOperandString()
-	} else if i.Opcode >= 2 && i.Opcode <= 9 { // Branch
-		symbolFound := false
-		if file != nil {
-			imm := int16(uint16(i.SImm16.IntValue))
-			target := i.PC + uint64(imm*4) + 4
-			symbols, _ := file.Symbols()
-			for _, symbol := range symbols {
-				if symbol.Value == target {
-					operandStr = " " + symbol.Name
-					symbolFound = true
-				}
-			}
-		}
-		if !symbolFound {
-			operandStr = " " + i.SImm16.String()
-		}
-	} else if i.Opcode == 1 || i.Opcode == 10 {
-		// Does not print anything
-	} else {
-		operandStr = " " + i.SImm16.String()
-	}
+	// operandStr := ""
+	// if i.Opcode == 12 { // S_WAITCNT
+	// 	operandStr = i.waitcntOperandString()
+	// } else if i.Opcode >= 2 && i.Opcode <= 9 { // Branch
+	// 	symbolFound := false
+	// 	if file != nil {
+	// 		imm := int16(uint16(i.SImm16.IntValue))
+	// 		target := i.PC + uint64(imm*4) + 4
+	// 		symbols, _ := file.Symbols()
+	// 		for _, symbol := range symbols {
+	// 			if symbol.Value == target {
+	// 				operandStr = " " + symbol.Name
+	// 				symbolFound = true
+	// 			}
+	// 		}
+	// 	}
+	// 	if !symbolFound {
+	// 		operandStr = " " + i.SImm16.String()
+	// 	}
+	// } else if i.Opcode == 1 || i.Opcode == 10 {
+	// 	// Does not print anything
+	// } else {
+	// 	operandStr = " " + i.SImm16.String()
+	// }
 
 	// TODO How to handle this?
-	instString := fmt.Sprintf("0 %s 0 0",
+	instString := fmt.Sprintf("0 %s 0",
 		i.InstName)
 	return instString
 }
@@ -197,8 +270,30 @@ func (i Inst) vop2String() string {
 	// return s
 
 	// Accel-Sim printout
-	instString := fmt.Sprintf("1 %s %s 2 %s %s 0",
-		i.Dst.String(), i.InstName, i.Src0.String(), i.Src1.String())
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	if i.Src1.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src1.String()
+		} else {
+			srcString = srcString + " " + i.Src1.String()
+		}
+		count := 1
+		if i.Src1.RegCount != 0 {
+			count = i.Src1.RegCount
+		}
+		regCount += count
+	}
+	instString := fmt.Sprintf("1 %s %s %d %s",
+		i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
@@ -228,14 +323,59 @@ func (i Inst) vopcString() string {
 	// return fmt.Sprintf("%s %s, %s, %s",
 	// 	i.InstName, dst, i.Src0.String(), i.Src1.String())
 
-	instString := fmt.Sprintf("0 %s 2 %s %s 0",
-		i.InstName, i.Src0.String(), i.Src1.String())
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	if i.Src1.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src1.String()
+		} else {
+			srcString = srcString + " " + i.Src1.String()
+		}
+		count := 1
+		if i.Src1.RegCount != 0 {
+			count = i.Src1.RegCount
+		}
+		regCount += count
+	}
+
+	instString := fmt.Sprintf("0 %s %d %s",
+		i.InstName, regCount, srcString)
 	return instString
 }
 
 func (i Inst) sopcString() string {
-	instString := fmt.Sprintf("0 %s 2 %s %s 0",
-		i.InstName, i.Src0.String(), i.Src1.String())
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	if i.Src1.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src1.String()
+		} else {
+			srcString = srcString + " " + i.Src1.String()
+		}
+		count := 1
+		if i.Src1.RegCount != 0 {
+			count = i.Src1.RegCount
+		}
+		regCount += count
+	}
+	instString := fmt.Sprintf("0 %s %d %s",
+		i.InstName, regCount, srcString)
 	return instString
 }
 
@@ -269,8 +409,49 @@ func (i Inst) vop3aString() string {
 
 	// return s
 
-	instString := fmt.Sprintf("1 %s %s 3 %s %s %s 0",
-		i.Dst.String(), i.InstName, i.Src0.String(), i.Src1.String(), i.Src2.String())
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	if i.Src1.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src1.String()
+		} else {
+			srcString = srcString + " " + i.Src1.String()
+		}
+		count := 1
+		if i.Src1.RegCount != 0 {
+			count = i.Src1.RegCount
+		}
+		regCount += count
+	}
+	if i.Src2 != nil && i.Src2.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src2.String()
+		} else {
+			srcString = srcString + " " + i.Src2.String()
+		}
+		count := 1
+		if i.Src2.RegCount != 0 {
+			count = i.Src2.RegCount
+		}
+		regCount += count
+	}
+
+	var instString string
+
+	dstCount := 1
+	if i.Dst.RegCount != 0 {
+		dstCount = i.Dst.RegCount
+	}
+	instString = fmt.Sprintf("%d %s %s %d %s",
+		dstCount, i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
@@ -316,63 +497,104 @@ func (i Inst) vop3bString() string {
 	// return s
 
 	// Accel-Sim
-	if i.Opcode != 281 && i.Src2 != nil {
-		instString := fmt.Sprintf("2 %s %s %s 3 %s %s %s 0",
-			i.Dst.String(), i.SDst.String(), i.InstName, i.Src0.String(), i.Src1.String(), i.Src2.String())
-		return instString
-	} else {
-		instString := fmt.Sprintf("2 %s %s %s 2 %s %s 0",
-			i.Dst.String(), i.SDst.String(), i.InstName, i.Src0.String(), i.Src1.String())
-		return instString
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
 	}
+	if i.Src1.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src1.String()
+		} else {
+			srcString = srcString + " " + i.Src1.String()
+		}
+		count := 1
+		if i.Src1.RegCount != 0 {
+			count = i.Src1.RegCount
+		}
+		regCount += count
+	}
+	if i.Src2 != nil && i.Src2.OperandType == RegOperand {
+		if regCount == 0 {
+			srcString = i.Src2.String()
+		} else {
+			srcString = srcString + " " + i.Src2.String()
+		}
+		count := 1
+		if i.Src2.RegCount != 0 {
+			count = i.Src2.RegCount
+		}
+		regCount += count
+	}
+
+	instString := fmt.Sprintf("2 %s %s %s %d %s",
+		i.Dst.String(), i.SDst.String(), i.InstName, regCount, srcString)
+	return instString
 }
 
 func (i Inst) sop1String() string {
-	instString := fmt.Sprintf("1 %s %s 1 %s 0",
-		i.Dst.String(), i.InstName, i.Src0.String())
+	srcString := ""
+	regCount := 0
+	if i.Src0.OperandType == RegOperand {
+		srcString = i.Src0.String()
+		count := 1
+		if i.Src0.RegCount != 0 {
+			count = i.Src0.RegCount
+		}
+		regCount += count
+	}
+	dstCount := 1
+	if i.Dst.RegCount != 0 {
+		dstCount = i.Dst.RegCount
+	}
+	instString := fmt.Sprintf("%d %s %s %d %s",
+		dstCount, i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
 func (i Inst) sopkString() string {
 	// No src regs for immediate values
-	instString := fmt.Sprintf("1 %s %s 0 0",
+	instString := fmt.Sprintf("1 %s %s 0",
 		i.Dst.String(), i.InstName)
 	return instString
 }
 
 func (i Inst) dsString() string {
-	s := i.InstName + " "
-	switch i.Opcode {
-	case 54, 55, 56, 57, 58, 59, 60, 118, 119, 120, 254, 255:
-		s += i.Dst.String() + ", "
-	}
-
-	s += i.Addr.String()
-
+	// Data share operations
+	// LDS scratchpad
+	// Accel-Sim
+	srcString := ""
+	regCount := 0
 	if i.SRC0Width > 0 {
-		s += ", " + i.Data.String()
+		srcString = i.Data.String()
+		regCount += 1
 	}
-
 	if i.SRC1Width > 0 {
-		s += ", " + i.Data1.String()
+		if regCount == 0 {
+			srcString = i.Data1.String()
+		} else {
+			srcString = srcString + " " + i.Data1.String()
+		}
+		regCount += 1
 	}
 
+	var instString string
 	switch i.Opcode {
-	case 13, 54, 254, 255:
-		if i.Offset0 > 0 {
-			s += fmt.Sprintf(" offset:%d", i.Offset0)
-		}
-	default:
-		if i.Offset0 > 0 {
-			s += fmt.Sprintf(" offset0:%d", i.Offset0)
-		}
-
-		if i.Offset1 > 0 {
-			s += fmt.Sprintf(" offset1:%d", i.Offset1)
-		}
+	case 54, 55, 56, 57, 58, 59, 60, 118, 119, 120, 254, 255: // Read ops
+		instString = fmt.Sprintf("%d %s %s %d %s",
+			1, i.Dst.String(), i.InstName, regCount, srcString)
+		break
+	default: // Write ops
+		instString = fmt.Sprintf("0 %s %d %s",
+			i.InstName, regCount, srcString)
 	}
 
-	return s
+	return instString
 }
 
 //nolint:gocyclo
@@ -411,4 +633,11 @@ func (i Inst) String(file *elf.File) string {
 	}
 }
 
-// TODO Add Accel-Sim format instruction here
+func (i Inst) IsMemInst() bool {
+	switch i.FormatType {
+	case SMEM, FLAT, DS:
+		return true
+	default:
+		return false
+	}
+}

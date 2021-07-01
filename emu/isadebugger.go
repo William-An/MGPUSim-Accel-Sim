@@ -155,7 +155,7 @@ func (h *ISADebugger) logWholeWfAccelSim(wf *Wavefront) {
 
 	// TODO Change this output via creating new String method in
 	// the Inst class
-	output += fmt.Sprintf(`%s `, wf.Inst().String(nil))
+	output += fmt.Sprintf(`%s %s`, wf.Inst().String(nil), wf.compressedMemoryAddr())
 
 	// TODO What about memory location?
 

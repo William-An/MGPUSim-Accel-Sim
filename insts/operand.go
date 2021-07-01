@@ -104,11 +104,23 @@ func (o Operand) String() string {
 func (o Operand) regOperandToString() string {
 	if o.RegCount > 1 {
 		if o.Register.IsSReg() {
-			return fmt.Sprintf("s[%d:%d]",
-				o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
+			str := ""
+			for i := 0; i < o.RegCount-1; i++ {
+				str += fmt.Sprintf("s%d ", o.Register.RegIndex()+i)
+			}
+			str += fmt.Sprintf("s%d", o.Register.RegIndex()+o.RegCount-1)
+			return str
+			// return fmt.Sprintf("s[%d:%d]",
+			// 	o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
 		} else if o.Register.IsVReg() {
-			return fmt.Sprintf("v[%d:%d]",
-				o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
+			str := ""
+			for i := 0; i < o.RegCount-1; i++ {
+				str += fmt.Sprintf("R%d ", o.Register.RegIndex()+i)
+			}
+			str += fmt.Sprintf("R%d", o.Register.RegIndex()+o.RegCount-1)
+			return str
+			// return fmt.Sprintf("v[%d:%d]",
+			// 	o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
 		} else if strings.Contains(o.Register.Name, "lo") {
 			return o.Register.Name[:len(o.Register.Name)-2]
 		}

@@ -1,6 +1,7 @@
 package emu
 
 import (
+	"fmt"
 	"log"
 
 	"gitlab.com/akita/mgpusim/v2/insts"
@@ -146,4 +147,125 @@ func (wf *Wavefront) WriteReg(
 	} else {
 		log.Panicf("Register type %s not supported", reg.Name)
 	}
+}
+
+// Take the work items addresses and convert to compressed address string
+func (wf *Wavefront) compressedMemoryAddr() string {
+	if !wf.inst.IsMemInst() {
+		// 0 mem width
+		return "0"
+	}
+
+	var workItemAddrs [64]uint64
+
+	// Get address from vregs
+	for laneID := 0; laneID < 64; laneID++ {
+		if wf.inst.FormatType == insts.SMEM {
+			// SMEM ops
+			// Treat SMEM op differently
+			regIdx := wf.inst.Base.Register.RegIndex()
+			regCount := wf.inst.Base.RegCount
+			var offset uint64 = uint64(wf.inst.Offset.IntValue)
+			if !wf.inst.Imm { // Read offset reg val
+				offset = insts.BytesToUint64(wf.ReadReg(insts.SReg(wf.inst.Offset.Register.RegIndex()), 1, laneID))
+			}
+			workItemAddrs[laneID] = insts.BytesToUint64(
+				wf.ReadReg(insts.SReg(regIdx), regCount, laneID)) + offset
+		} else if wf.inst.FormatType == insts.DS {
+			// DS Ops, data share ops on local memory
+			// TODO
+		} else if wf.inst.Addr.OperandType != insts.RegOperand {
+			// Literal address
+			workItemAddrs[laneID] = uint64(wf.inst.Addr.IntValue)
+		} else if wf.inst.Addr.RegCount > 1 {
+			// 64 bit address
+			regIdx := wf.inst.Addr.Register.RegIndex()
+			regCount := wf.inst.Addr.RegCount
+			workItemAddrs[laneID] = insts.BytesToUint64(
+				wf.ReadReg(insts.VReg(regIdx), regCount, laneID))
+		} else if wf.inst.Addr.RegCount == 1 {
+			// 32 bit address
+			regIdx := wf.inst.Addr.Register.RegIndex()
+			workItemAddrs[laneID] = uint64(insts.BytesToUint32(
+				wf.ReadReg(insts.VReg(regIdx), 1, laneID)))
+		}
+
+	}
+
+	// Memwidth info is encoded in the disasm decode table
+	memStr := fmt.Sprintf("%d", wf.inst.MemoryWidth)
+
+	// Need array of reg values and exec mask
+	mask := wf.Exec
+	var base_stride_success bool
+	var base_addr uint64
+	var stride int
+	var deltas []int64
+
+	base_stride_success, base_addr, stride = base_stride_compress(&workItemAddrs, mask)
+
+	if base_stride_success {
+		return fmt.Sprintf("%s 1 0x%x %d", memStr, base_addr, stride)
+	} else {
+		base_addr, deltas = base_delta_compress(&workItemAddrs, mask)
+		baseStr := fmt.Sprintf("2 0x%x", base_addr)
+
+		for i := 0; i < len(deltas); i++ {
+			baseStr += fmt.Sprintf(" %d", deltas[i])
+		}
+		return fmt.Sprintf("%s %s", memStr, baseStr)
+	}
+}
+
+func base_stride_compress(workItemAddrs *[64]uint64, mask uint64) (const_stride bool, base_addr uint64, stride int) {
+	const_stride = true
+	var first_bit1_found bool = false
+	var last_bit1_found bool = false
+
+	for s := 0; s < 64; s++ {
+		if (((mask >> s) & 1) == 1) && !first_bit1_found { // Find first bit that is 1
+			first_bit1_found = true
+			base_addr = workItemAddrs[s]            // Load base address into it
+			if s < 31 && (((mask >> s) & 1) == 1) { // Attempt to find an initial constant stride?
+				stride = int(workItemAddrs[s+1] - workItemAddrs[s])
+
+			} else { // If no constant stride found, exit loop
+				const_stride = false
+				break
+			}
+		} else if first_bit1_found && !last_bit1_found {
+			if ((mask >> s) & 1) == 1 {
+				if stride != int(workItemAddrs[s]-workItemAddrs[s-1]) {
+					const_stride = false
+					break
+				}
+			} else {
+				last_bit1_found = true
+			}
+		} else if last_bit1_found {
+			if ((mask >> s) & 1) == 1 {
+				const_stride = false
+				break
+			}
+		}
+	}
+
+	return const_stride, base_addr, stride
+}
+
+func base_delta_compress(workItemAddrs *[64]uint64, mask uint64) (base_addr uint64, deltas []int64) {
+	var first_bit1_found bool = false
+	var last_address uint64 = 0
+	for s := 0; s < 64; s++ {
+		if (((mask >> s) & 1) == 1) && !first_bit1_found {
+			base_addr = workItemAddrs[s]
+			first_bit1_found = true
+			last_address = workItemAddrs[s]
+		} else if (((mask >> s) & 1) == 1) && first_bit1_found {
+			deltas = append(deltas, int64(workItemAddrs[s]-last_address))
+			last_address = workItemAddrs[s]
+		}
+	}
+
+	return base_addr, deltas
 }
