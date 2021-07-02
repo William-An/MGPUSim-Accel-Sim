@@ -122,7 +122,9 @@ func (o Operand) regOperandToString() string {
 			// return fmt.Sprintf("v[%d:%d]",
 			// 	o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
 		} else if strings.Contains(o.Register.Name, "lo") {
-			return o.Register.Name[:len(o.Register.Name)-2]
+			// return lo and high regs
+			baseName := o.Register.Name[:len(o.Register.Name)-2]
+			return fmt.Sprintf("%sLO %sHI", baseName, baseName)
 		}
 		return fmt.Sprintf("<unknown: %+v>", o.Register)
 	}

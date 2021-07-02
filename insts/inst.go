@@ -538,6 +538,7 @@ func (i Inst) vop3bString() string {
 }
 
 func (i Inst) sop1String() string {
+	// TODO Vcc is 32bit with lo and high 
 	srcString := ""
 	regCount := 0
 	if i.Src0.OperandType == RegOperand {

@@ -357,6 +357,16 @@
             ]
         },
         {
+            "name": "Page Rank Debug ISA",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/samples/pagerank",
+            "args": [
+                "-debug-isa"
+            ]
+        },
+        {
             "name": "BFS",
             "type": "go",
             "request": "launch",
