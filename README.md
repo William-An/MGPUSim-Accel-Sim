@@ -1,5 +1,9 @@
 # MGPUSIM
 
+This is a fork repo of the original MGPUSim simulator [here](https://gitlab.com/akita/mgpusim). Modifications were maded to convert the debug ISA traces to Accel-Sim format.
+
+---
+
 [![Go Report Card](https://goreportcard.com/badge/gitlab.com/akita/mgpusim)](https://goreportcard.com/report/gitlab.com/akita/mgpusim)
 [![Test](https://gitlab.com/akita/mgpusim/badges/master/pipeline.svg)](https://gitlab.com/akita/mgpusim/commits/master)
 [![Coverage](https://gitlab.com/akita/mgpusim/badges/master/coverage.svg)](https://gitlab.com/akita/mgpusim/commits/master)
