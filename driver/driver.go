@@ -976,8 +976,8 @@ func NewDriver(
 
 	driver.createCPU()
 
-	// Add custom logger to generate kernelslist.g
-	kernelslist, err := os.Create("kernelslist.g")
+	// Add custom logger to generate kernelslist
+	kernelslist, err := os.Create("kernelslist")
 	if err != nil {
 		log.Fatal(err.Error())
 	}

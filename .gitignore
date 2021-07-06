@@ -28,5 +28,7 @@ vendor
 __debug_bin
 
 # Accel-Sim related
-*.g
+kernelslist.g
+kernelslist
+*.trace
 *.traceg
