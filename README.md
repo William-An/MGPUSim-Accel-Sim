@@ -2,6 +2,20 @@
 
 This is a fork repo of the original MGPUSim simulator [here](https://gitlab.com/akita/mgpusim). Modifications were maded to convert the debug ISA traces to Accel-Sim format.
 
+To generate the AMD traces, run the benchmarks with `-debug-isa` flag. For instance, to run the `fir` benchmark in `heteromark`,
+do the following:
+
+```bash
+# Do ensure you have the golang environment setup
+# Build the benchmark
+go build
+
+# Run the benchmark with trace output in parallel mode (speed up)
+./fir -parallel -debug-isa
+```
+
+
+
 ---
 
 [![Go Report Card](https://goreportcard.com/badge/gitlab.com/akita/mgpusim)](https://goreportcard.com/report/gitlab.com/akita/mgpusim)

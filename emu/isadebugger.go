@@ -100,7 +100,7 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 				// The number of registers used by each thread of this kernel function.
 				// Get from HSACO WFSgprCount (wavefront scalar reg count) and WIVgprCount (work item vector reg count)
 				regCount := wf.CodeObject.WFSgprCount + wf.CodeObject.WIVgprCount
-				h.Logger.Printf("-nregs = %d\n0", regCount)
+				h.Logger.Printf("-nregs = %d\n", regCount)
 
 				// Used to get the opcode mapping for the GPU
 				// Set to 100 for now for this AMD GPU
