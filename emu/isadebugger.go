@@ -93,9 +93,9 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 				// Warp size
 				h.Logger.Printf("-warp size = 64\n")
 
-				// TODO Find the rest header
-				// static shmem bytes +
-				h.Logger.Printf("-shmem = 0\n")
+				// static shmem bytes + dynamic shared mem bytes
+				// Use GroupSegmentSize, which is used to initialize LDS storage size in the simulator
+				h.Logger.Printf("-shmem = %d\n", wf.Packet.GroupSegmentSize)
 
 				// The number of registers used by each thread of this kernel function.
 				// Get from HSACO WFSgprCount (wavefront scalar reg count) and WIVgprCount (work item vector reg count)
@@ -109,8 +109,10 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 				// Ignored
 				h.Logger.Printf("-cuda stream id = 0\n")
 
-				h.Logger.Printf("-shmem base_addr = 0x%x\n", 123)
-				h.Logger.Printf("-local mem base_addr = 0x%x\n", 123)
+				// TODO Unknown where to find the base addr for these two
+				h.Logger.Printf("-shmem base_addr = 0x%x\n", 0)
+				h.Logger.Printf("-local mem base_addr = 0x%x\n", 0)
+
 				h.Logger.Printf("-nvbit version = -1\n")
 				h.Logger.Printf("-accelsim tracer version = 3\n")
 			}
