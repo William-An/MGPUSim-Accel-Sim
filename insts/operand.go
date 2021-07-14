@@ -106,9 +106,9 @@ func (o Operand) regOperandToString() string {
 		if o.Register.IsSReg() {
 			str := ""
 			for i := 0; i < o.RegCount-1; i++ {
-				str += fmt.Sprintf("s%d ", o.Register.RegIndex()+i)
+				str += fmt.Sprintf("S%d ", o.Register.RegIndex()+i)
 			}
-			str += fmt.Sprintf("s%d", o.Register.RegIndex()+o.RegCount-1)
+			str += fmt.Sprintf("S%d", o.Register.RegIndex()+o.RegCount-1)
 			return str
 			// return fmt.Sprintf("s[%d:%d]",
 			// 	o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
@@ -121,7 +121,7 @@ func (o Operand) regOperandToString() string {
 			return str
 			// return fmt.Sprintf("v[%d:%d]",
 			// 	o.Register.RegIndex(), o.Register.RegIndex()+o.RegCount-1)
-		} else if strings.Contains(o.Register.Name, "lo") {
+		} else if strings.Contains(o.Register.Name, "LO") {
 			// return lo and high regs
 			baseName := o.Register.Name[:len(o.Register.Name)-2]
 			return fmt.Sprintf("%sLO %sHI", baseName, baseName)

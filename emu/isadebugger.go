@@ -86,8 +86,33 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 			// TODO Log basic header info from hsakerneldispatchpacket
 			// for header info as all will be concatenating together
 			if firstLogger {
+				// Used for mataching hardware results
 				h.Logger.Printf("-kernel name = %s\n", h.kernelName)
 				h.Logger.Printf("-kernel id = %s\n", h.kernelID)
+
+				// Warp size
+				h.Logger.Printf("-warp size = 64\n")
+
+				// TODO Find the rest header
+				// static shmem bytes +
+				h.Logger.Printf("-shmem = 0\n")
+
+				// The number of registers used by each thread of this kernel function.
+				// Get from HSACO WFSgprCount (wavefront scalar reg count) and WIVgprCount (work item vector reg count)
+				regCount := wf.CodeObject.WFSgprCount + wf.CodeObject.WIVgprCount
+				h.Logger.Printf("-nregs = %d\n0", regCount)
+
+				// Used to get the opcode mapping for the GPU
+				// Set to 100 for now for this AMD GPU
+				h.Logger.Printf("-binary version = 100\n")
+
+				// Ignored
+				h.Logger.Printf("-cuda stream id = 0\n")
+
+				h.Logger.Printf("-shmem base_addr = 0x%x\n", 123)
+				h.Logger.Printf("-local mem base_addr = 0x%x\n", 123)
+				h.Logger.Printf("-nvbit version = -1\n")
+				h.Logger.Printf("-accelsim tracer version = 3\n")
 			}
 
 			// Dims

@@ -18,6 +18,7 @@ type HsaCo struct {
 }
 
 // HsaCoHeader contains the header information of an HSACO
+// https://rocmdocs.amd.com/en/latest/ROCm_Compiler_SDK/ROCm-Codeobj-format.html?highlight=finalizer#amd-kernel-code
 type HsaCoHeader struct {
 	CodeVersionMajor                uint32
 	CodeVersionMinor                uint32

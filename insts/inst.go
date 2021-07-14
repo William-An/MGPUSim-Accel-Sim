@@ -121,14 +121,15 @@ func (i Inst) sop2String() string {
 		}
 		regCount += count
 	}
-	instString := fmt.Sprintf("1 %s %s %d %s",
-		i.Dst.String(), i.InstName, regCount, srcString)
+	instString := fmt.Sprintf("%d %s %s %d %s",
+		i.Dst.RegCount, i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
 func (i Inst) vop1String() string {
 	srcString := ""
 	regCount := 0
+	regDstCount := 0
 	if i.Src0.OperandType == RegOperand {
 		srcString = i.Src0.String()
 		count := 1
@@ -137,8 +138,18 @@ func (i Inst) vop1String() string {
 		}
 		regCount += count
 	}
-	instString := fmt.Sprintf("1 %s %s %d %s",
-		i.Dst.String(), i.InstName, regCount, srcString)
+
+	// VOP1 Inst might use special indexing? like V_CVT_F64_I32 will use two vreg instead of one
+	if i.Dst.OperandType == RegOperand {
+		count := 1
+		if i.Dst.RegCount != 0 {
+			count = i.Dst.RegCount
+		}
+		regDstCount += count
+	}
+	// VOP1 might assume to have 1 reg, thus the i.Dst.RegCount might be zero
+	instString := fmt.Sprintf("%d %s %s %d %s",
+		regDstCount, i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
@@ -159,8 +170,8 @@ func (i Inst) flatString() string {
 
 	var instString string
 	if i.Opcode >= 16 && i.Opcode <= 23 { // Load
-		instString = fmt.Sprintf("1 %s %s %d %s",
-			i.Dst.String(), i.InstName, i.Addr.RegCount, i.Addr.String())
+		instString = fmt.Sprintf("%d %s %s %d %s",
+			i.Dst.RegCount, i.Dst.String(), i.InstName, i.Addr.RegCount, i.Addr.String())
 	} else if i.Opcode >= 24 && i.Opcode <= 31 { // Store
 		// TODO How to deal with store reg? Treat all as src regs?
 		instString = fmt.Sprintf("0 %s %d %s %s",
@@ -292,6 +303,8 @@ func (i Inst) vop2String() string {
 		}
 		regCount += count
 	}
+
+	// VOP2 inst assume dst is 1 reg
 	instString := fmt.Sprintf("1 %s %s %d %s",
 		i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
@@ -538,7 +551,7 @@ func (i Inst) vop3bString() string {
 }
 
 func (i Inst) sop1String() string {
-	// TODO Vcc is 32bit with lo and high 
+	// TODO Vcc is 32bit with lo and high
 	srcString := ""
 	regCount := 0
 	if i.Src0.OperandType == RegOperand {
@@ -569,26 +582,14 @@ func (i Inst) dsString() string {
 	// Data share operations
 	// LDS scratchpad
 	// Accel-Sim
-	srcString := ""
-	regCount := 0
-	if i.SRC0Width > 0 {
-		srcString = i.Data.String()
-		regCount += 1
-	}
-	if i.SRC1Width > 0 {
-		if regCount == 0 {
-			srcString = i.Data1.String()
-		} else {
-			srcString = srcString + " " + i.Data1.String()
-		}
-		regCount += 1
-	}
+	srcString := i.Addr.String()
+	regCount := i.Addr.RegCount
 
 	var instString string
 	switch i.Opcode {
 	case 54, 55, 56, 57, 58, 59, 60, 118, 119, 120, 254, 255: // Read ops
 		instString = fmt.Sprintf("%d %s %s %d %s",
-			1, i.Dst.String(), i.InstName, regCount, srcString)
+			i.Dst.RegCount, i.Dst.String(), i.InstName, regCount, srcString)
 		break
 	default: // Write ops
 		instString = fmt.Sprintf("0 %s %d %s",

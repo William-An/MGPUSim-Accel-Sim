@@ -173,7 +173,10 @@ func (wf *Wavefront) compressedMemoryAddr() string {
 				wf.ReadReg(insts.SReg(regIdx), regCount, laneID)) + offset
 		} else if wf.inst.FormatType == insts.DS {
 			// DS Ops, data share ops on local memory
-			// TODO
+			// TODO View as consecutive memory address despite of different offest values
+			regIdx := wf.inst.Addr.Register.RegIndex()
+			workItemAddrs[laneID] = uint64(insts.BytesToUint32(
+				wf.ReadReg(insts.VReg(regIdx), 1, laneID)))
 		} else if wf.inst.Addr.OperandType != insts.RegOperand {
 			// Literal address
 			workItemAddrs[laneID] = uint64(wf.inst.Addr.IntValue)
