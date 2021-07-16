@@ -170,12 +170,36 @@ func (i Inst) flatString() string {
 
 	var instString string
 	if i.Opcode >= 16 && i.Opcode <= 23 { // Load
+		regDstCount := 0
+		if i.Dst.OperandType == RegOperand {
+			count := 1
+			if i.Dst.RegCount != 0 {
+				count = i.Dst.RegCount
+			}
+			regDstCount += count
+		}
 		instString = fmt.Sprintf("%d %s %s %d %s",
-			i.Dst.RegCount, i.Dst.String(), i.InstName, i.Addr.RegCount, i.Addr.String())
+			regDstCount, i.Dst.String(), i.InstName, i.Addr.RegCount, i.Addr.String())
 	} else if i.Opcode >= 24 && i.Opcode <= 31 { // Store
-		// TODO How to deal with store reg? Treat all as src regs?
+		// How to deal with store reg? Treat all as src regs for now
+		regAddrCount := 0
+		regDataCount := 0
+		if i.Addr.OperandType == RegOperand {
+			count := 1
+			if i.Addr.RegCount != 0 {
+				count = i.Addr.RegCount
+			}
+			regAddrCount += count
+		}
+		if i.Data.OperandType == RegOperand {
+			count := 1
+			if i.Data.RegCount != 0 {
+				count = i.Data.RegCount
+			}
+			regDataCount += count
+		}
 		instString = fmt.Sprintf("0 %s %d %s %s",
-			i.InstName, i.Addr.RegCount+i.Data.RegCount, i.Addr.String(), i.Data.String())
+			i.InstName, regAddrCount+regDataCount, i.Addr.String(), i.Data.String())
 	}
 
 	return instString
