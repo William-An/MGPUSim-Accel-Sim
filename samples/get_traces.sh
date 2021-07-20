@@ -29,6 +29,12 @@ clean_line() {
 }
 
 cwd=$(readlink -f .)
+cwd=${cwd##*/}
+
+if [[ ! "$cwd" == "samples" ]]; then
+  echo "This shell script must be run in MGPUSim/samples folder, exiting now"
+  exit
+fi
 
 # Create traces dir
 tracesDir=$(readlink -f ./traces/)  # absolute path to trace folder
@@ -44,11 +50,11 @@ fi
 
 # Loop benchmarks dir to generate traces
 benchmarkDirs=*/
-numBenchmarks=$((`echo $benchmarkDirs | wc -w` - 2))
+numBenchmarks=$((`echo $benchmarkDirs | wc -w` - 3))
 curr=0
 for benchmarkDir in $benchmarkDirs; do
   # Ignore runner dir
-  if [[ "$benchmarkDir" == "runner/" || "$benchmarkDir" == "traces/" ]]; then
+  if [[ "$benchmarkDir" == "runner/" || "$benchmarkDir" == "traces/" || "$benchmarkDir" == "server/" ]]; then
     continue
   fi
   benchmark=${benchmarkDir%/}
