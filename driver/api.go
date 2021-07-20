@@ -310,7 +310,7 @@ func (d *Driver) MemCopyD2H(ctx *Context, dst interface{}, src GPUPtr) {
 	output := ""
 	// From GPU Addr
 	output += fmt.Sprintf("MemcpyDtoH,0x%016x,%d\n", src, binary.Size(dst))
-	d.Logger.Print(output)
+	// d.Logger.Print(output)
 }
 
 // MemCopyD2D copies a memory from a GPU device to another GPU device. num is
@@ -323,5 +323,5 @@ func (d *Driver) MemCopyD2D(ctx *Context, dst GPUPtr, src GPUPtr, num int) {
 	// Add logging
 	output := ""
 	output += fmt.Sprintf("MemcpyDtoD,0x%016x,%d\n", dst, num)
-	d.Logger.Print(output)
+	// d.Logger.Print(output)
 }
