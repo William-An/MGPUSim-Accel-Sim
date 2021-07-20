@@ -121,8 +121,12 @@ func (i Inst) sop2String() string {
 		}
 		regCount += count
 	}
+	dstCount := 1
+	if i.Dst.RegCount != 0 {
+		dstCount = i.Dst.RegCount
+	}
 	instString := fmt.Sprintf("%d %s %s %d %s",
-		i.Dst.RegCount, i.Dst.String(), i.InstName, regCount, srcString)
+		dstCount, i.Dst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
