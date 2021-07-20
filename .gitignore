@@ -32,3 +32,6 @@ kernelslist.g
 kernelslist
 *.trace
 *.traceg
+*.err
+*.log
+traces/

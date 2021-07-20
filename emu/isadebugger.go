@@ -93,6 +93,9 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 				// Warp size
 				h.Logger.Printf("-warp size = 64\n")
 
+				// ISA Type
+				h.Logger.Printf("-isa type = GCN3\n")
+
 				// static shmem bytes + dynamic shared mem bytes
 				// Use GroupSegmentSize, which is used to initialize LDS storage size in the simulator
 				h.Logger.Printf("-shmem = %d\n", wf.Packet.GroupSegmentSize)

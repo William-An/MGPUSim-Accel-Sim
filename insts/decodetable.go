@@ -5,6 +5,7 @@ func (d *Disassembler) initializeDecodeTable() {
 	d.decodeTables = make(map[FormatType]*decodeTable)
 
 	// SOP2 instructions
+	
 	d.addInstType(&InstType{"s_add_u32", 0, FormatTable[SOP2], 0, ExeUnitScalar, 32, 32, 32, 0, 0, 0})
 	d.addInstType(&InstType{"s_sub_u32", 1, FormatTable[SOP2], 0, ExeUnitScalar, 32, 32, 32, 0, 0, 0})
 	d.addInstType(&InstType{"s_add_i32", 2, FormatTable[SOP2], 0, ExeUnitScalar, 32, 32, 32, 0, 0, 0})
