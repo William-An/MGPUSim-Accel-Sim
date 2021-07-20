@@ -14,7 +14,16 @@ go build
 ./fir -parallel -debug-isa
 ```
 
+To use the `get_traces.sh` in `./samples` folder:
 
+```bash
+cd ./samples
+./get_traces.sh
+```
+
+All traces for the benchmarks will be generated and collected into `./samples/traces` folder
+
+TODO: Automate the trace generation using GitHub Action
 
 ---
 
