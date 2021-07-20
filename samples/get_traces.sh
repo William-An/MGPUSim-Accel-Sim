@@ -78,8 +78,8 @@ for benchmarkDir in $benchmarkDirs; do
   # Store generated traces
   benchmarkTraceDir=$tracesDir/$benchmark
   mkdir $benchmarkTraceDir
-  cp *.trace $benchmarkTraceDir
-  cp kernelslist $benchmarkTraceDir
+  mv *.trace $benchmarkTraceDir
+  mv kernelslist $benchmarkTraceDir
   cd ..
   clean_line
 done
