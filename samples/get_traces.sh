@@ -68,7 +68,12 @@ for benchmarkDir in $benchmarkDirs; do
   # Build benchmark and run to generate traces
   cd $benchmarkDir
   go build
-  ./$benchmark -parallel -debug-isa >> ../get_traces.log 2>> ../get_traces.err
+
+  if [[ "$benchmark" == "xor" ]]; then  # XOR in parallel might caused deadlock issue
+    ./$benchmark -debug-isa >> ../get_traces.log 2>> ../get_traces.err
+  else
+    ./$benchmark -parallel -debug-isa >> ../get_traces.log 2>> ../get_traces.err
+  fi
 
   # Store generated traces
   benchmarkTraceDir=$tracesDir/$benchmark
