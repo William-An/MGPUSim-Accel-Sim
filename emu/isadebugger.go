@@ -118,6 +118,9 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 
 				h.Logger.Printf("-nvbit version = -1\n")
 				h.Logger.Printf("-accelsim tracer version = 3\n")
+
+				// Print the trace format
+				h.Logger.Printf("#traces format = threadblock_x threadblock_y threadblock_z warpid_tb PC mask dest_num [reg_dests] opcode src_num [reg_srcs] mem_width [adrrescompress?] [mem_addresses]")
 			}
 
 			// Dims
