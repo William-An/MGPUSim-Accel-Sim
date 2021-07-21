@@ -48,6 +48,10 @@ else
   rmdir $tracesDir/* 2> /dev/null
 fi
 
+# Clean up log files
+rm ./get_traces.log
+rm ./get_traces.err
+
 # Loop benchmarks dir to generate traces
 benchmarkDirs=*/
 numBenchmarks=$((`echo $benchmarkDirs | wc -w` - 3))
