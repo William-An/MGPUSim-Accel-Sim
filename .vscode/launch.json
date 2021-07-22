@@ -169,6 +169,16 @@
             ]
         },
         {
+            "name": "Kmeans Debug ISA",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/samples/kmeans",
+            "args": [
+                "-debug-isa",
+            ]
+        },
+        {
             "name": "Concurrent Workload",
             "type": "go",
             "request": "launch",

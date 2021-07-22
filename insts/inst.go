@@ -573,12 +573,8 @@ func (i Inst) vop3bString() string {
 		regCount += count
 	}
 
-	dstCount := 2
-	if i.Dst.RegCount != 0 {
-		dstCount = i.Dst.RegCount
-	}
 	instString := fmt.Sprintf("%d %s %s %s %d %s",
-		dstCount, i.Dst.String(), i.SDst.String(), i.InstName, regCount, srcString)
+		i.Dst.RegCount+i.SDst.RegCount, i.Dst.String(), i.SDst.String(), i.InstName, regCount, srcString)
 	return instString
 }
 
