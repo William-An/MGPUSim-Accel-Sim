@@ -28,6 +28,11 @@ type Wavefront struct {
 	SRegFile []byte
 	VRegFile []byte
 	LDS      []byte
+
+	// Accel-Sim
+	// naive way to get prev reg values for self-assigned load insts
+	PrevSRegFile []byte
+	PrevVRegFile []byte
 }
 
 // NewWavefront returns the Wavefront that wraps the nativeWf
@@ -39,6 +44,8 @@ func NewWavefront(nativeWf *kernels.Wavefront) *Wavefront {
 	wf.VRegFile = make([]byte, 4*64*256)
 	wf.scratchpad = make([]byte, 4096)
 
+	wf.PrevSRegFile = make([]byte, 4*102)
+	wf.PrevVRegFile = make([]byte, 4*64*256)
 	return wf
 }
 
@@ -57,6 +64,20 @@ func (wf *Wavefront) PID() ca.PID {
 	return wf.pid
 }
 
+// Create snapshot of wavefront of scalar regs
+func (wf *Wavefront) SRegSaveSnapShot() {
+	tmp := make([]byte, 4*102)
+	copy(tmp, wf.SRegFile)
+	wf.PrevSRegFile = tmp
+}
+
+// Create snapshot of wavefront of vector regs
+func (wf *Wavefront) VRegSaveSnapShot() {
+	tmp := make([]byte, 4*64*256)
+	copy(tmp, wf.VRegFile)
+	wf.PrevVRegFile = tmp
+}
+
 // SRegValue returns s(i)'s value
 func (wf *Wavefront) SRegValue(i int) uint32 {
 	return insts.BytesToUint32(wf.SRegFile[i*4 : i*4+4])
@@ -70,7 +91,7 @@ func (wf *Wavefront) VRegValue(lane int, i int) uint32 {
 
 // ReadReg returns the raw register value
 //nolint:gocyclo
-func (wf *Wavefront) ReadReg(reg *insts.Reg, regCount int, laneID int) []byte {
+func (wf *Wavefront) _ReadReg(reg *insts.Reg, regCount int, laneID int, sRegFile []byte, vRegFile []byte) []byte {
 	numBytes := reg.ByteSize
 	if regCount >= 2 {
 		numBytes *= regCount
@@ -80,10 +101,10 @@ func (wf *Wavefront) ReadReg(reg *insts.Reg, regCount int, laneID int) []byte {
 	var value = make([]byte, numBytes)
 	if reg.IsSReg() {
 		offset := reg.RegIndex() * 4
-		copy(value, wf.SRegFile[offset:offset+numBytes])
+		copy(value, sRegFile[offset:offset+numBytes])
 	} else if reg.IsVReg() {
 		offset := laneID*256*4 + reg.RegIndex()*4
-		copy(value, wf.VRegFile[offset:offset+numBytes])
+		copy(value, vRegFile[offset:offset+numBytes])
 	} else if reg.RegType == insts.SCC {
 		value[0] = wf.SCC
 	} else if reg.RegType == insts.VCC {
@@ -105,6 +126,14 @@ func (wf *Wavefront) ReadReg(reg *insts.Reg, regCount int, laneID int) []byte {
 	}
 
 	return value
+}
+
+func (wf *Wavefront) ReadReg(reg *insts.Reg, regCount int, laneID int) []byte {
+	return wf._ReadReg(reg, regCount, laneID, wf.SRegFile, wf.VRegFile)
+}
+
+func (wf *Wavefront) ReadPrevReg(reg *insts.Reg, regCount int, laneID int) []byte {
+	return wf._ReadReg(reg, regCount, laneID, wf.PrevSRegFile, wf.PrevVRegFile)
 }
 
 // WriteReg returns the raw register value
@@ -156,6 +185,21 @@ func (wf *Wavefront) compressedMemoryAddr() string {
 		return "0"
 	}
 
+	// Check if Dst regs and addr regs of inst overlap in a load op
+	// if overlap, means that some regs of addr might get overwritten, thus read from prev regfile
+	isRegOverlap := false
+	if wf.inst.Addr != nil &&
+		wf.inst.Dst != nil &&
+		wf.inst.Addr.OperandType == insts.RegOperand &&
+		wf.inst.Dst.OperandType == insts.RegOperand {
+		dstStart := wf.inst.Dst.Register.RegIndex()
+		dstEnd := dstStart + wf.inst.Dst.RegCount
+		addrStart := wf.inst.Addr.Register.RegIndex()
+		addrEnd := addrStart + wf.inst.Dst.RegCount
+
+		isRegOverlap = (dstStart <= addrStart && dstEnd >= addrStart) ||
+			(addrStart <= dstStart && addrEnd >= dstStart)
+	}
 	var workItemAddrs [64]uint64
 
 	// Get address from vregs
@@ -169,14 +213,28 @@ func (wf *Wavefront) compressedMemoryAddr() string {
 			if !wf.inst.Imm { // Read offset reg val
 				offset = insts.BytesToUint64(wf.ReadReg(insts.SReg(wf.inst.Offset.Register.RegIndex()), 1, laneID))
 			}
-			workItemAddrs[laneID] = insts.BytesToUint64(
-				wf.ReadReg(insts.SReg(regIdx), regCount, laneID)) + offset
+
+			if isRegOverlap {
+				workItemAddrs[laneID] = insts.BytesToUint64(
+					wf.ReadPrevReg(insts.SReg(regIdx), regCount, laneID)) + offset
+			} else {
+				workItemAddrs[laneID] = insts.BytesToUint64(
+					wf.ReadReg(insts.SReg(regIdx), regCount, laneID)) + offset
+			}
+
 		} else if wf.inst.FormatType == insts.DS {
 			// DS Ops, data share ops on local memory
 			// TODO View as consecutive memory address despite of different offest values
 			regIdx := wf.inst.Addr.Register.RegIndex()
-			workItemAddrs[laneID] = uint64(insts.BytesToUint32(
-				wf.ReadReg(insts.VReg(regIdx), 1, laneID)))
+
+			if isRegOverlap {
+				workItemAddrs[laneID] = uint64(insts.BytesToUint32(
+					wf.ReadPrevReg(insts.VReg(regIdx), 1, laneID)))
+			} else {
+				workItemAddrs[laneID] = uint64(insts.BytesToUint32(
+					wf.ReadReg(insts.VReg(regIdx), 1, laneID)))
+			}
+
 		} else if wf.inst.Addr.OperandType != insts.RegOperand {
 			// Literal address
 			workItemAddrs[laneID] = uint64(wf.inst.Addr.IntValue)
@@ -184,16 +242,33 @@ func (wf *Wavefront) compressedMemoryAddr() string {
 			// 64 bit address
 			regIdx := wf.inst.Addr.Register.RegIndex()
 			regCount := wf.inst.Addr.RegCount
-			workItemAddrs[laneID] = insts.BytesToUint64(
-				wf.ReadReg(insts.VReg(regIdx), regCount, laneID))
+			if isRegOverlap {
+				workItemAddrs[laneID] = insts.BytesToUint64(
+					wf.ReadPrevReg(insts.VReg(regIdx), regCount, laneID))
+			} else {
+				workItemAddrs[laneID] = insts.BytesToUint64(
+					wf.ReadReg(insts.VReg(regIdx), regCount, laneID))
+			}
+
 		} else if wf.inst.Addr.RegCount == 1 {
 			// 32 bit address
 			regIdx := wf.inst.Addr.Register.RegIndex()
-			workItemAddrs[laneID] = uint64(insts.BytesToUint32(
-				wf.ReadReg(insts.VReg(regIdx), 1, laneID)))
+
+			if isRegOverlap {
+				workItemAddrs[laneID] = uint64(insts.BytesToUint32(
+					wf.ReadPrevReg(insts.VReg(regIdx), 1, laneID)))
+			} else {
+				workItemAddrs[laneID] = uint64(insts.BytesToUint32(
+					wf.ReadReg(insts.VReg(regIdx), 1, laneID)))
+			}
+
 		}
 
 	}
+
+	// Snapshot the regfile
+	wf.SRegSaveSnapShot()
+	wf.VRegSaveSnapShot()
 
 	// Memwidth info is encoded in the disasm decode table
 	memStr := fmt.Sprintf("%d", wf.inst.MemoryWidth)

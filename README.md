@@ -23,7 +23,12 @@ cd ./samples
 
 All traces for the benchmarks will be generated and collected into `./samples/traces` folder
 
-TODO: Automate the trace generation using GitHub Action
+## TODO
+
+1. [ ] Automate the trace generation using GitHub Action
+2. [x] Get the correct memory address for self-assigning instructions like `2 R6 R7 FLAT_LOAD_DWORDX2 2 R6 R7`
+    1. Maintain a snapshot of the GPRS in logger
+    2. And check if the dst reg and addr reg of an inst overlap
 
 ---
 

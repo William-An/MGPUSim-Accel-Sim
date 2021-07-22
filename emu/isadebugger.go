@@ -179,8 +179,7 @@ func (h *ISADebugger) Func(ctx sim.HookCtx) {
 }
 
 func (h *ISADebugger) logWholeWfAccelSim(wf *Wavefront) {
-
-	// TODO Format as the following:
+	// Format is as the following:
 	// #traces format = threadblock_x threadblock_y threadblock_z warpid_tb PC mask dest_num [reg_dests] opcode src_num [reg_srcs] mem_width [adrrescompress?] [mem_addresses]
 	// warpid_tb should be just wf.wlflatid/wavefront.size
 	output := ""
