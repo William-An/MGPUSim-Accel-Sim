@@ -671,3 +671,21 @@ func (i Inst) IsMemInst() bool {
 		return false
 	}
 }
+
+func (i Inst) IsLoadInst() bool {
+	switch i.FormatType {
+	case SMEM:
+		return strings.Contains(i.InstName, "load")
+	case FLAT:
+		return i.Opcode >= 16 && i.Opcode <= 23
+	case DS:
+		switch i.Opcode {
+		case 54, 55, 56, 57, 58, 59, 60, 118, 119, 120, 254, 255: // Read ops
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}

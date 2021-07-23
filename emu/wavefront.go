@@ -188,7 +188,7 @@ func (wf *Wavefront) compressedMemoryAddr() string {
 	// Check if Dst regs and addr regs of inst overlap in a load op
 	// if overlap, means that some regs of addr might get overwritten, thus read from prev regfile
 	isRegOverlap := false
-	if wf.inst.Addr != nil &&
+	if wf.inst.IsLoadInst() && wf.inst.Addr != nil &&
 		wf.inst.Dst != nil &&
 		wf.inst.Addr.OperandType == insts.RegOperand &&
 		wf.inst.Dst.OperandType == insts.RegOperand {
