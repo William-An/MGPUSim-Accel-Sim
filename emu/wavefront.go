@@ -182,6 +182,9 @@ func (wf *Wavefront) WriteReg(
 func (wf *Wavefront) compressedMemoryAddr() string {
 	if !wf.inst.IsMemInst() {
 		// 0 mem width
+		// Snapshot the regfile
+		wf.SRegSaveSnapShot()
+		wf.VRegSaveSnapShot()
 		return "0"
 	}
 
