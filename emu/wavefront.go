@@ -190,6 +190,10 @@ func (wf *Wavefront) compressedMemoryAddr() string {
 
 	// Check if Dst regs and addr regs of inst overlap in a load op
 	// if overlap, means that some regs of addr might get overwritten, thus read from prev regfile
+	// TODO For matrixmultiplication first kernel inst at PC: 0000d460
+	// TODO 4 R33 R34 R35 R36 FLAT_LOAD_DWORDX4 2 R30 R31
+	// TODO It will set the isRegOverlap to true for some reasons, though not won't affect the reading of memory addr
+	// TODO But it is bugging me LOL
 	isRegOverlap := false
 	if wf.inst.IsLoadInst() && wf.inst.Addr != nil &&
 		wf.inst.Dst != nil &&
