@@ -218,10 +218,10 @@ func (i Inst) smemString() string {
 
 	// If load op, have dst regs, else be store op, treat addr and data reg as src
 	var instString string
-	if strings.Contains(i.InstName, "load") && i.Imm { // load with immediate val offset
+	if strings.Contains(i.InstName, "LOAD") && i.Imm { // load with immediate val offset
 		instString = fmt.Sprintf("%d %s %s %d %s",
 			i.Data.RegCount, i.Data.String(), i.InstName, i.Base.RegCount, i.Base.String())
-	} else if strings.Contains(i.InstName, "load") && !i.Imm { // load with SREG offset
+	} else if strings.Contains(i.InstName, "LOAD") && !i.Imm { // load with SREG offset
 		instString = fmt.Sprintf("%d %s %s %d %s %s",
 			i.Data.RegCount, i.Data.String(), i.InstName, i.Base.RegCount+1, i.Base.String(), i.Offset.regOperandToString())
 	} else if !i.Imm { // Store with SREG offset
