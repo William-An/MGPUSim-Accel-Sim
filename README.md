@@ -17,11 +17,26 @@ go build
 To use the `get_traces.sh` in `./samples` folder:
 
 ```bash
+# Get AMD GCN3 traces
 cd ./samples
 ./get_traces.sh
 ```
 
 All traces for the benchmarks will be generated and collected into `./samples/traces` folder
+
+To run all benchmarks:
+```bash
+# Run MGPUSim benchmarks for timing data, or MGPUSim simulation results
+cd ./samples
+./run_benchmarks.sh
+```
+
+To collect the benchmarks stats:
+```bash
+# Collect and compute the stats for whole component, like the total L2 cache read count and write count
+cd ./samples
+./collect_stats.sh
+```
 
 ## TODO
 
