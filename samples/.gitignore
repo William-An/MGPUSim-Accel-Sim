@@ -1,1 +1,3 @@
 *.s
+stats/
+traces/
