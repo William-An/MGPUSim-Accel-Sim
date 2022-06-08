@@ -30,6 +30,13 @@ All traces for the benchmarks will be generated and collected into `./samples/tr
     1. Maintain a snapshot of the GPRS in logger
     2. And check if the dst reg and addr reg of an inst overlap
         1. Check the `TODO` in `wavefront.go` for resolving a bug
+3. [ ] `shmem` and `local mem` addr in GCN3? `isadebugger.go:116`
+
+## Note
+
+1. `inst.go` contains the most modifications to dump accel-sim style traces
+2. `isadebugger.go` controls the header and fences of kernel traces
+3. `wavefront.go` controls memory addr access
 
 ---
 

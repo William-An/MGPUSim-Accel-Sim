@@ -185,13 +185,16 @@ func (h *ISADebugger) logWholeWfAccelSim(wf *Wavefront) {
 	output := ""
 	output += fmt.Sprintf(`%d %d %d %d `, wf.WG.IDX, wf.WG.IDY, wf.WG.IDZ, wf.FirstWiFlatID/64)
 	output += fmt.Sprintf(`%08x `, wf.PC)
-	output += fmt.Sprintf(`%016x `, wf.Exec)
 
-	// TODO Change this output via creating new String method in
-	// the Inst class
+	// Make the scalar mem inst to has Exec mask of 0x1
+	// As they should access mem only one times for each 64 lane
+	if (wf.Inst().IsScalarMemInst()) {
+		output += fmt.Sprintf(`%016x `, 0x1)
+	} else {
+		output += fmt.Sprintf(`%016x `, wf.Exec)
+	}
+
 	output += fmt.Sprintf(`%s %s`, wf.Inst().String(nil), wf.compressedMemoryAddr())
-
-	// TODO What about memory location?
 
 	h.Logger.Print(output)
 }

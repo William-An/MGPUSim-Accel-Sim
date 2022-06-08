@@ -689,3 +689,14 @@ func (i Inst) IsLoadInst() bool {
 		return false
 	}
 }
+
+func (i Inst) IsScalarMemInst() bool {
+	// Returns true if the inst is a scalar inst responsible
+	// for load and store
+	switch i.FormatType {
+	case SMEM:
+		return true
+	default:
+		return false
+	}
+}
