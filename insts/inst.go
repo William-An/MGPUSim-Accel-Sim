@@ -700,3 +700,13 @@ func (i Inst) IsScalarMemInst() bool {
 		return false
 	}
 }
+
+func (i Inst) IsScalarInst() bool {
+	// Returns true if the inst is a scalar inst
+	switch i.FormatType {
+	case SOP2, SMEM, SOPP, SOPC, SOP1, SOPK:
+		return true
+	default:
+		return false
+	}
+}
